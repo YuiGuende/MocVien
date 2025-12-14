@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Order Chat - Mộc Miên Coffee</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .chat-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 40px);
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .chat-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .chat-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.ai {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai .message-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .message.ai .message-time {
+            text-align: left;
+        }
+
+        .cart-sidebar {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .cart-header {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .cart-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .cart-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .cart-item-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .cart-item-details {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .cart-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .cart-footer {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .cart-total {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-control {
+            border-radius: 25px;
+            border: 2px solid #e0e0e0;
+            padding: 12px 20px;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .btn-send {
+            border-radius: 25px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .btn-send:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-send:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-confirm-order {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            border: none;
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .btn-confirm-order:hover {
+            background: #218838;
+        }
+
+        .btn-confirm-order:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .session-info {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .chat-body {
+                flex-direction: column;
+            }
+
+            .cart-sidebar {
+                width: 100%;
+                max-height: 300px;
+            }
+
+            .message-bubble {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1><i class="fas fa-robot"></i> AI Order Assistant</h1>
+            <p>Chào mừng đến với quán Mộc Miên! Hãy nói với em bạn muốn gì nhé 😊</p>
+        </div>
+
+        <div class="session-info">
+            <strong>Session:</strong> <span id="sessionId">Đang tạo...</span>
+            <button class="btn btn-sm btn-outline-secondary ms-3" onclick="resetSession()">
+                <i class="fas fa-sync"></i> Reset Session
+            </button>
+        </div>
+
+        <div class="chat-body">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai">
+                    <div class="message-bubble">
+                        Xin chào! Em là nhân viên AI của quán Mộc Miên. Em có thể giúp anh/chị xem menu, đặt món hoặc trả lời câu hỏi. Anh/chị cần gì ạ? 😊
+                        <div class="message-time" id="initialTime"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cart-sidebar">
+                <div class="cart-header">
+                    <h3><i class="fas fa-shopping-cart"></i> Giỏ Hàng</h3>
+                </div>
+                <div class="cart-items" id="cartItems">
+                    <div class="cart-empty">
+                        <i class="fas fa-shopping-cart" style="font-size: 48px; opacity: 0.3;"></i>
+                        <p>Giỏ hàng trống</p>
+                    </div>
+                </div>
+                <div class="cart-footer">
+                    <div class="cart-total">
+                        <span>Tổng cộng:</span>
+                        <span id="cartTotal">0 VNĐ</span>
+                    </div>
+                    <button class="btn-confirm-order" id="confirmOrderBtn" onclick="confirmOrder()" disabled>
+                        <i class="fas fa-check"></i> Xác Nhận Đặt Hàng
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="input-group">
+                <input type="text" 
+                       class="form-control" 
+                       id="messageInput" 
+                       placeholder="Nhập tin nhắn của bạn... (ví dụ: cho tôi 2 cà phê đen)"
+                       onkeypress="handleKeyPress(event)">
+                <button class="btn btn-send" id="sendBtn" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i> Gửi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let sessionId = generateSessionId();
+        let cartItems = [];
+        let isProcessing = false;
+
+        // Set initial time
+        document.getElementById('initialTime').textContent = getCurrentTime();
+        document.getElementById('sessionId').textContent = sessionId;
+
+        function generateSessionId() {
+            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function resetSession() {
+            if (confirm('Bạn có chắc muốn reset session? Giỏ hàng sẽ bị xóa.')) {
+                sessionId = generateSessionId();
+                cartItems = [];
+                document.getElementById('sessionId').textContent = sessionId;
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="message ai">
+                        <div class="message-bubble">
+                            Session đã được reset. Em có thể giúp gì cho anh/chị ạ? 😊
+                            <div class="message-time">${getCurrentTime()}</div>
+                        </div>
+                    </div>
+                `;
+                updateCartDisplay();
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isProcessing) {
+                return;
+            }
+
+            // Add user message to chat
+            addMessageToChat(message, 'user');
+            input.value = '';
+            isProcessing = true;
+            setLoading(true);
+
+            try {
+                const response = await fetch('/ai/order/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        sessionId: sessionId,
+                        tableNumber: null
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Add AI response to chat
+                addMessageToChat(data.message, 'ai');
+                
+                // Update cart
+                if (data.cartItems && data.cartItems.length > 0) {
+                    cartItems = data.cartItems;
+                    updateCartDisplay();
+                } else if (data.cartItems && data.cartItems.length === 0) {
+                    cartItems = [];
+                    updateCartDisplay();
+                }
+
+                // If order confirmed
+                if (data.orderId) {
+                    showOrderSuccess(data.orderId, data.totalAmount);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                addMessageToChat('Xin lỗi, có lỗi xảy ra. Vui lòng thử lại ạ.', 'ai');
+            } finally {
+                isProcessing = false;
+                setLoading(false);
+            }
+        }
+
+        function addMessageToChat(message, type) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = message;
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = getCurrentTime();
+            
+            bubble.appendChild(timeDiv);
+            messageDiv.appendChild(bubble);
+            messagesContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function updateCartDisplay() {
+            const cartItemsContainer = document.getElementById('cartItems');
+            const cartTotalElement = document.getElementById('cartTotal');
+            const confirmBtn = document.getElementById('confirmOrderBtn');
+
+            if (cartItems.length === 0) {
+                cartItemsContainer.innerHTML = `
+                    <div class="cart-empty">
+                        <i class="fas fa-shopping-cart" style="font-size: 48px; opacity: 0.3;"></i>
+                        <p>Giỏ hàng trống</p>
+                    </div>
+                `;
+                cartTotalElement.textContent = '0 VNĐ';
+                confirmBtn.disabled = true;
+            } else {
+                let total = 0;
+                cartItemsContainer.innerHTML = cartItems.map(item => {
+                    const subtotal = item.price * item.quantity;
+                    total += subtotal;
+                    return `
+                        <div class="cart-item">
+                            <div class="cart-item-name">${item.productName}</div>
+                            <div class="cart-item-details">
+                                Số lượng: ${item.quantity} × ${formatPrice(item.price)} VNĐ = ${formatPrice(subtotal)} VNĐ
+                                ${item.note ? '<br>Ghi chú: ' + item.note : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                cartTotalElement.textContent = formatPrice(total) + ' VNĐ';
+                confirmBtn.disabled = false;
+            }
+        }
+
+        async function confirmOrder() {
+            if (cartItems.length === 0) {
+                alert('Giỏ hàng đang trống!');
+                return;
+            }
+
+            if (!confirm('Bạn có chắc muốn xác nhận đặt hàng?')) {
+                return;
+            }
+
+            setLoading(true);
+            try {
+                const response = await fetch('/ai/order/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: 'đặt hàng',
+                        sessionId: sessionId,
+                        tableNumber: null
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.orderId) {
+                    showOrderSuccess(data.orderId, data.totalAmount);
+                    cartItems = [];
+                    updateCartDisplay();
+                } else {
+                    addMessageToChat(data.message, 'ai');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function showOrderSuccess(orderId, totalAmount) {
+            addMessageToChat(
+                `✅ Đặt hàng thành công!\n` +
+                `Mã đơn: #${orderId}\n` +
+                `Tổng tiền: ${formatPrice(totalAmount)} VNĐ\n` +
+                `Cảm ơn bạn đã đặt hàng tại quán Mộc Miên!`,
+                'ai'
+            );
+        }
+
+        function setLoading(loading) {
+            const sendBtn = document.getElementById('sendBtn');
+            const input = document.getElementById('messageInput');
+            
+            if (loading) {
+                sendBtn.innerHTML = '<div class="loading"></div>';
+                sendBtn.disabled = true;
+                input.disabled = true;
+            } else {
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi';
+                sendBtn.disabled = false;
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        function formatPrice(price) {
+            if (!price) return '0';
+            return new Intl.NumberFormat('vi-VN').format(Math.round(price));
+        }
+
+        // Focus input on load
+        document.getElementById('messageInput').focus();
+    </script>
+</body>
+</html>
+

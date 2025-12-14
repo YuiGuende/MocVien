@@ -54,6 +54,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/login", "/error").permitAll()
+                        .requestMatchers("/ai-chat", "/ai/order/**", "/ai/load", "/ai/ask").permitAll() // Allow AI chat without auth
                         .requestMatchers("/admin/**", "/users/**", "/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/pos/**", "/api/pos/**").hasAnyRole("ADMIN", "STAFF")
                         .anyRequest().authenticated()

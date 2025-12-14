@@ -26,5 +26,12 @@ public class PosController {
         model.addAttribute("settings", settingsService.getSettings());
         return "pos";
     }
+
+    @GetMapping("/huuTinh")
+    public String huuTinh(Model model) {
+        model.addAttribute("ten","do huu tinh");
+        return "hello";
+
+    }
 }
 
