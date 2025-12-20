@@ -230,6 +230,18 @@
                             <span class="fs-5 fw-bold" id="summaryTotal">$0.00</span>
                         </div>
                         <div id="paymentPanel" class="p-3 bg-light rounded mb-3 d-none">
+                            <h6 class="mb-2">Thông tin khách hàng (tích điểm)</h6>
+                            <div class="mb-2">
+                                <label class="form-label small mb-0">Tên khách hàng</label>
+                                <input type="text" class="form-control form-control-sm" id="customerNameInput" placeholder="Nhập tên khách hàng">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small mb-0">Số điện thoại</label>
+                                <input type="text" class="form-control form-control-sm" id="customerPhoneInput" placeholder="Nhập số điện thoại">
+                            </div>
+                            <div id="customerInfo" class="alert alert-info d-none mb-2 small">
+                                <div id="customerInfoText"></div>
+                            </div>
                             <div class="mb-2">
                                 <label class="form-label small mb-0">Phụ thu (%)</label>
                                 <input type="number" step="0.1" min="0" class="form-control form-control-sm" id="surchargePercentInput">

@@ -263,6 +263,9 @@ public class AiOrderService {
         OrderRequest orderRequest = new OrderRequest(
                 null, // tableId
                 tableNumber,
+                null, // customerId
+                null, // customerName
+                null, // customerPhoneNumber
                 null, // totalAmount - sẽ tính tự động
                 null, // surchargePercent
                 null, // surchargeAmount

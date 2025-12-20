@@ -40,6 +40,10 @@
     const changeDisplay = document.getElementById('changeDisplay');
     const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
     const surchargeLabel = document.getElementById('surchargeLabel');
+    const customerNameInput = document.getElementById('customerNameInput');
+    const customerPhoneInput = document.getElementById('customerPhoneInput');
+    const customerInfo = document.getElementById('customerInfo');
+    const customerInfoText = document.getElementById('customerInfoText');
     if (surchargeLabel) surchargeLabel.textContent = state.surchargeName;
     if (surchargePercentInput) surchargePercentInput.value = state.surchargePercent;
 
@@ -274,6 +278,52 @@
         }
     }));
 
+    // Kiểm tra customer khi nhập số điện thoại
+    customerPhoneInput?.addEventListener('blur', async () => {
+        const phone = customerPhoneInput.value?.trim();
+        if (!phone) {
+            if (customerInfo) customerInfo.classList.add('d-none');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/pos/customers');
+            if (!response.ok) return;
+            const customers = await response.json();
+            const existingCustomer = customers.find(c => c.phoneNumber === phone);
+            
+            if (existingCustomer) {
+                if (customerInfoText) {
+                    customerInfoText.innerHTML = `
+                        <strong>Khách hàng đã có trong hệ thống:</strong><br>
+                        Tên: ${existingCustomer.name}<br>
+                        Điểm tích lũy hiện tại: <strong>${existingCustomer.points || 0} điểm</strong>
+                    `;
+                }
+                if (customerInfo) {
+                    customerInfo.classList.remove('d-none');
+                    customerInfo.classList.remove('alert-danger');
+                    customerInfo.classList.add('alert-info');
+                }
+                // Tự động điền tên nếu chưa có
+                if (customerNameInput && !customerNameInput.value.trim()) {
+                    customerNameInput.value = existingCustomer.name;
+                }
+            } else {
+                if (customerInfoText) {
+                    customerInfoText.innerHTML = 'Khách hàng mới - sẽ được tạo khi checkout';
+                }
+                if (customerInfo) {
+                    customerInfo.classList.remove('d-none');
+                    customerInfo.classList.remove('alert-info');
+                    customerInfo.classList.add('alert-success');
+                }
+            }
+        } catch (e) {
+            console.error('Error checking customer:', e);
+        }
+    });
+
     confirmPaymentBtn?.addEventListener('click', async () => {
         const prepared = prepareCheckout();
         if (!prepared) return;
@@ -295,6 +345,8 @@
         const payload = {
             tableId: state.selectedTable?.id ?? null,
             tableNumber: tableLabel.textContent,
+            customerName: customerNameInput?.value?.trim() || null,
+            customerPhoneNumber: customerPhoneInput?.value?.trim() || null,
             totalAmount: Number(totals.total.toFixed(2)),
             surchargePercent: totals.percent,
             surchargeAmount: Number(totals.surcharge.toFixed(2)),
@@ -320,18 +372,36 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error('Failed to submit order');
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to submit order');
+            }
+            const result = await response.json();
+            
+            let message = 'Đơn hàng đã được tạo thành công!';
+            if (result.customerName) {
+                const pointsEarned = result.pointsEarned || 0;
+                const totalPoints = result.customerPoints || 0;
+                message += `\n\nKhách hàng: ${result.customerName}`;
+                message += `\nSố điện thoại: ${result.customerPhone}`;
+                message += `\nĐiểm tích lũy từ đơn này: ${pointsEarned} điểm`;
+                message += `\nTổng điểm hiện tại: ${totalPoints} điểm`;
+            }
+            
             clearCartStorage(currentCartKey());
             await releaseCurrentTable();
             state.cart = [];
             state.cashGiven = 0;
             if (cashInput) cashInput.value = '';
+            if (customerNameInput) customerNameInput.value = '';
+            if (customerPhoneInput) customerPhoneInput.value = '';
+            if (customerInfo) customerInfo.classList.add('d-none');
             disableCheckoutMode(false);
             updateCartUI();
-            alert('Order submitted!');
+            alert(message);
             offcanvas?.hide();
         } catch (e) {
-            alert(e.message);
+            alert('Lỗi: ' + e.message);
         }
     }
 

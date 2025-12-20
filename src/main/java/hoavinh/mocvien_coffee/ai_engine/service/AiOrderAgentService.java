@@ -160,6 +160,9 @@ public class AiOrderAgentService {
         OrderRequest orderRequest = new OrderRequest(
                 null,
                 tableNumber,
+                null, // customerId
+                null, // customerName
+                null, // customerPhoneNumber
                 null,
                 null,
                 null,

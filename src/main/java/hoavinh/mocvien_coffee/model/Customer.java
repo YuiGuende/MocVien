@@ -13,8 +13,8 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "products")
-public class Product {
+@Table(name = "customers")
+public class Customer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,20 +23,11 @@ public class Product {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
-    private Double price;
-
-    @Column(nullable = false)
-    private String category;
-
-    private String imageUrl;
+    @Column(name = "phone_number", nullable = false, unique = true)
+    private String phoneNumber;
 
     @Builder.Default
     @Column(nullable = false)
-    private boolean available = true;
-
-    @Builder.Default
-    @Column(nullable = false)
-    private Double cost = 0.0;
+    private Integer points = 0;
 }
 

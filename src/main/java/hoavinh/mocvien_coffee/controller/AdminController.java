@@ -5,6 +5,7 @@ import hoavinh.mocvien_coffee.model.CafeSettings;
 import hoavinh.mocvien_coffee.model.CafeTable;
 import hoavinh.mocvien_coffee.model.Product;
 import hoavinh.mocvien_coffee.model.TableStatus;
+import hoavinh.mocvien_coffee.service.CustomerService;
 import hoavinh.mocvien_coffee.service.DashboardService;
 import hoavinh.mocvien_coffee.service.ProductService;
 import hoavinh.mocvien_coffee.service.SettingsService;
@@ -26,15 +27,18 @@ public class AdminController {
     private final ProductService productService;
     private final TableService tableService;
     private final SettingsService settingsService;
+    private final CustomerService customerService;
 
     public AdminController(DashboardService dashboardService,
                            ProductService productService,
                            TableService tableService,
-                           SettingsService settingsService) {
+                           SettingsService settingsService,
+                           CustomerService customerService) {
         this.dashboardService = dashboardService;
         this.productService = productService;
         this.tableService = tableService;
         this.settingsService = settingsService;
+        this.customerService = customerService;
     }
 
     @GetMapping("/dashboard")
@@ -70,6 +74,7 @@ public class AdminController {
         existing.setCategory(product.getCategory());
         existing.setImageUrl(product.getImageUrl());
         existing.setAvailable(product.isAvailable());
+        existing.setCost(product.getCost());
         productService.save(existing);
         redirectAttributes.addFlashAttribute("success", "Product updated");
         return "redirect:/admin/products";
@@ -139,6 +144,12 @@ public class AdminController {
         settingsService.save(settings);
         redirectAttributes.addFlashAttribute("success", "Settings updated");
         return "redirect:/admin/settings";
+    }
+
+    @GetMapping("/customer")
+    public String customers(Model model) {
+        model.addAttribute("customers", customerService.findAll());
+        return "admin/customer";
     }
 }
 

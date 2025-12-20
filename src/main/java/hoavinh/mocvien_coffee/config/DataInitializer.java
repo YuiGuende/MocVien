@@ -71,16 +71,16 @@ public class DataInitializer implements CommandLineRunner {
 
         if (productRepository.count() == 0) {
             List<Product> seedProducts = List.of(
-                    Product.builder().name("Espresso").category("Coffee").price(2.5).imageUrl("/images/espresso.png").available(true).build(),
-                    Product.builder().name("Latte").category("Coffee").price(3.5).imageUrl("/images/latte.png").available(true).build(),
-                    Product.builder().name("Cappuccino").category("Coffee").price(3.2).imageUrl("/images/cappuccino.png").available(true).build(),
-                    Product.builder().name("Vietnamese Coffee").category("Coffee").price(2.8).imageUrl("/images/vncoffee.png").available(true).build(),
-                    Product.builder().name("Matcha Latte").category("Tea").price(3.1).imageUrl("/images/matcha.png").available(true).build(),
-                    Product.builder().name("Jasmine Tea").category("Tea").price(2.0).imageUrl("/images/jasmine.png").available(true).build(),
-                    Product.builder().name("Thai Milk Tea").category("Tea").price(2.9).imageUrl("/images/thai.png").available(true).build(),
-                    Product.builder().name("Mango Smoothie").category("Smoothie").price(3.4).imageUrl("/images/mango.png").available(true).build(),
-                    Product.builder().name("Avocado Smoothie").category("Smoothie").price(3.8).imageUrl("/images/avocado.png").available(true).build(),
-                    Product.builder().name("Berry Smoothie").category("Smoothie").price(3.6).imageUrl("/images/berry.png").available(true).build()
+                    Product.builder().name("Espresso").category("Coffee").price(2.5).cost(1.0).imageUrl("/images/espresso.png").available(true).build(),
+                    Product.builder().name("Latte").category("Coffee").price(3.5).cost(1.2).imageUrl("/images/latte.png").available(true).build(),
+                    Product.builder().name("Cappuccino").category("Coffee").price(3.2).cost(1.1).imageUrl("/images/cappuccino.png").available(true).build(),
+                    Product.builder().name("Vietnamese Coffee").category("Coffee").price(2.8).cost(0.9).imageUrl("/images/vncoffee.png").available(true).build(),
+                    Product.builder().name("Matcha Latte").category("Tea").price(3.1).cost(1.0).imageUrl("/images/matcha.png").available(true).build(),
+                    Product.builder().name("Jasmine Tea").category("Tea").price(2.0).cost(0.5).imageUrl("/images/jasmine.png").available(true).build(),
+                    Product.builder().name("Thai Milk Tea").category("Tea").price(2.9).cost(0.8).imageUrl("/images/thai.png").available(true).build(),
+                    Product.builder().name("Mango Smoothie").category("Smoothie").price(3.4).cost(1.5).imageUrl("/images/mango.png").available(true).build(),
+                    Product.builder().name("Avocado Smoothie").category("Smoothie").price(3.8).cost(1.8).imageUrl("/images/avocado.png").available(true).build(),
+                    Product.builder().name("Berry Smoothie").category("Smoothie").price(3.6).cost(1.6).imageUrl("/images/berry.png").available(true).build()
             );
             productRepository.saveAll(seedProducts);
         }

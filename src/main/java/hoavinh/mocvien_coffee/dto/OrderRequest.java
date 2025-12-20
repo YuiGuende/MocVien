@@ -4,6 +4,9 @@ import java.util.List;
 
 public record OrderRequest(Long tableId,
                            String tableNumber,
+                           Long customerId,
+                           String customerName,
+                           String customerPhoneNumber,
                            Double totalAmount,
                            Double surchargePercent,
                            Double surchargeAmount,

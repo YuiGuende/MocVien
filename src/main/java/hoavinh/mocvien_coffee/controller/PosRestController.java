@@ -2,9 +2,11 @@ package hoavinh.mocvien_coffee.controller;
 
 import hoavinh.mocvien_coffee.dto.CafeTableDto;
 import hoavinh.mocvien_coffee.dto.OrderRequest;
+import hoavinh.mocvien_coffee.model.Customer;
 import hoavinh.mocvien_coffee.model.Product;
 import hoavinh.mocvien_coffee.model.User;
 import hoavinh.mocvien_coffee.repository.UserRepository;
+import hoavinh.mocvien_coffee.service.CustomerService;
 import hoavinh.mocvien_coffee.service.OrderService;
 import hoavinh.mocvien_coffee.service.ProductService;
 import hoavinh.mocvien_coffee.service.TableService;
@@ -30,15 +32,18 @@ public class PosRestController {
     private final OrderService orderService;
     private final UserRepository userRepository;
     private final TableService tableService;
+    private final CustomerService customerService;
 
     public PosRestController(ProductService productService,
                              OrderService orderService,
                              UserRepository userRepository,
-                             TableService tableService) {
+                             TableService tableService,
+                             CustomerService customerService) {
         this.productService = productService;
         this.orderService = orderService;
         this.userRepository = userRepository;
         this.tableService = tableService;
+        this.customerService = customerService;
     }
 
     @GetMapping("/products")
@@ -64,17 +69,45 @@ public class PosRestController {
         return toDto(tableService.release(id));
     }
 
+    @GetMapping("/customers")
+    public List<Customer> customers() {
+        return customerService.findAll();
+    }
+
+    @PostMapping("/customers")
+    public ResponseEntity<?> createCustomer(@RequestBody CreateCustomerRequest request) {
+        Customer customer = Customer.builder()
+                .name(request.name())
+                .phoneNumber(request.phoneNumber())
+                .build();
+        Customer saved = customerService.save(customer);
+        return ResponseEntity.ok(saved);
+    }
+
     @PostMapping("/orders")
     public ResponseEntity<?> createOrder(@Valid @RequestBody OrderRequest request,
                                          Authentication authentication) {
         User user = userRepository.findByUsername(authentication.getName())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         var order = orderService.createOrder(request, user);
-        return ResponseEntity.ok(java.util.Map.of(
-                "orderId", order.getId(),
-                "createdAt", order.getCreatedAt().toString()
-        ));
+        
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("orderId", order.getId());
+        response.put("createdAt", order.getCreatedAt().toString());
+        
+        if (order.getCustomer() != null) {
+            response.put("customerName", order.getCustomer().getName());
+            response.put("customerPhone", order.getCustomer().getPhoneNumber());
+            response.put("customerPoints", order.getCustomer().getPoints());
+            // Tính điểm tích lũy từ đơn này (1000 VNĐ = 1 điểm)
+            int pointsEarned = (int) (order.getTotalAmount() / 1000);
+            response.put("pointsEarned", pointsEarned);
+        }
+        
+        return ResponseEntity.ok(response);
     }
+
+    public record CreateCustomerRequest(String name, String phoneNumber) {}
 
     private CafeTableDto toDto(hoavinh.mocvien_coffee.model.CafeTable table) {
         return new CafeTableDto(
