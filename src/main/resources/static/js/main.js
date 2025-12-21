@@ -17,6 +17,9 @@
     const productSearch = document.getElementById('productSearch');
     const categoryButtons = document.querySelectorAll('.category-btn');
     const template = document.getElementById('cartItemTemplate');
+    const notifyKitchenBtn = document.getElementById('notifyKitchenBtn');
+    const notifyKitchenBtnMobile = document.getElementById('notifyKitchenBtnMobile');
+    const notifyKitchenButtons = [notifyKitchenBtn, notifyKitchenBtnMobile].filter(Boolean);
     if (!productGrid || !template) {
         return;
     }
@@ -84,7 +87,7 @@
 
     async function loadProducts() {
         const activeCategory = document.querySelector('.category-btn.active')?.dataset.category ?? 'all';
-        const params = new URLSearchParams({category: activeCategory});
+        const params = new URLSearchParams({ category: activeCategory });
         const searchTerm = productSearch?.value ?? '';
         if (searchTerm) params.append('search', searchTerm);
         const response = await fetch(`/api/pos/products?${params.toString()}`);
@@ -117,7 +120,12 @@
 
     function addToCart(product) {
         if (state.selectedTable) ensureTableOccupied();
-        const existingIndex = state.cart.findIndex(item => item.id === product.id && !item.note);
+        // Chỉ merge với item cùng ID, không có note, và chưa được báo chế biến
+        const existingIndex = state.cart.findIndex(item => 
+            item.id === product.id && 
+            !item.note && 
+            !item.notified
+        );
         if (existingIndex >= 0) {
             state.cart[existingIndex].quantity += 1;
         } else {
@@ -128,6 +136,7 @@
                 unitPrice: Number(product.price),
                 quantity: 1,
                 note: '',
+                notified: false, // Mặc định là chưa báo chế biến
                 priceOverride: null
             });
         }
@@ -138,7 +147,21 @@
         const fragment = template.content.cloneNode(true);
         const row = fragment.querySelector('.cart-item-row');
         row.dataset.index = index;
-        row.querySelector('.item-name').textContent = item.name;
+
+        const nameElement = row.querySelector('.item-name');
+        nameElement.textContent = item.name;
+
+        // Xóa các class cũ trước khi thêm class mới
+        nameElement.classList.remove('item-notified', 'item-not-notified');
+        
+        // Áp dụng màu sắc dựa trên trạng thái notified
+        // Màu đỏ cho món chưa báo chế biến, màu đen cho món đã báo chế biến
+        if (item.notified) {
+            nameElement.classList.add('item-notified');
+        } else {
+            nameElement.classList.add('item-not-notified');
+        }
+
         row.querySelector('.item-note').textContent = item.note || '';
         row.querySelector('.item-price').textContent = effectivePrice(item).toFixed(2);
         row.querySelector('.item-qty').textContent = item.quantity;
@@ -150,12 +173,115 @@
         state.cart.forEach((item, index) => {
             cartContainers.forEach(container => container.appendChild(createCartRow(item, index)));
         });
+        const hasItems = state.cart.length > 0;
+        const hasUnnotifiedItems = state.cart.some(item => !item.notified);
+        // Cập nhật trạng thái cho cả nút desktop và mobile
+        notifyKitchenButtons.forEach(btn => {
+            if (hasItems && hasUnnotifiedItems) {
+                btn.classList.remove('d-none');
+                btn.disabled = false;
+            } else {
+                btn.classList.add('d-none');
+                btn.disabled = true;
+            }
+        });
         const totalItems = state.cart.reduce((sum, item) => sum + item.quantity, 0);
         summaryElements.items.forEach(el => el && (el.textContent = totalItems));
         if (floatingItems) floatingItems.textContent = totalItems;
         if (floatingBar) floatingBar.classList.toggle('d-none', state.cart.length === 0);
         updateTotals();
         saveCartToStorage();
+    }
+    // Hàm xử lý báo chế biến (dùng chung cho cả desktop và mobile)
+    async function handleNotifyKitchen() {
+        const unnotifiedItems = state.cart.filter(item => !item.notified);
+
+        if (unnotifiedItems.length === 0) {
+            alert('Không có món mới để báo chế biến!');
+            return;
+        }
+
+        // 1. Tạo mẫu in rút gọn cho phòng chế biến
+        buildKitchenReceipt(unnotifiedItems);
+
+        // 2. Lệnh in
+        window.print();
+
+        // 3. Lưu pending order vào database (lưu TẤT CẢ cart để đồng bộ)
+        try {
+            const totals = calculateTotals();
+            const payload = {
+                tableId: state.selectedTable?.id ?? null,
+                tableNumber: tableLabel?.textContent || (state.selectedTable?.name ?? 'Mang về'),
+                totalAmount: Number(totals.total.toFixed(2)),
+                surchargePercent: totals.percent,
+                surchargeAmount: Number(totals.surcharge.toFixed(2)),
+                surchargeName: state.surchargeName,
+                customerCash: null,
+                changeAmount: null,
+                items: state.cart.map(item => ({
+                    productId: item.id,
+                    quantity: item.quantity,
+                    price: effectivePrice(item),
+                    note: item.note
+                }))
+            };
+
+            const response = await fetch('/api/pos/orders/pending', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save pending order');
+            }
+
+            // 4. Cập nhật trạng thái các món chưa báo chế biến thành đã báo (màu đen)
+            state.cart.forEach(item => {
+                if (!item.notified) {
+                    item.notified = true;
+                }
+            });
+
+            updateCartUI();
+        } catch (e) {
+            console.error('Error saving pending order:', e);
+            alert('Lỗi khi lưu đơn hàng: ' + e.message);
+        }
+    }
+
+    // Gắn event listener cho cả nút desktop và mobile
+    notifyKitchenButtons.forEach(btn => {
+        btn?.addEventListener('click', handleNotifyKitchen);
+    });
+
+    function buildKitchenReceipt(items) {
+        if (!receiptEl) return;
+
+        const itemsHtml = items.map(item => `
+        <tr>
+            <td style="font-size: 18px; padding: 5px 0;">
+                <strong>${item.name} x${item.quantity}</strong>
+                ${item.note ? `<div style="font-size:14px;">📝 Ghi chú: ${item.note}</div>` : ''}
+            </td>
+        </tr>
+    `).join('');
+
+        receiptEl.innerHTML = `
+        <div class="receipt kitchen-receipt" style="text-align: center; font-family: monospace;">
+            <h2 style="margin-bottom: 5px;"> PHIẾU CHẾ BIẾN </h2>
+            <div style="border-bottom: 1px dashed #000; margin-bottom: 10px;">
+                Bàn: ${state.selectedTable?.name ?? 'Mang về'} | ${new Date().toLocaleTimeString('vi-VN')}
+            </div>
+            <table style="width: 100%; text-align: left;">
+                <tbody>${itemsHtml}</tbody>
+            </table>
+            <div style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 5px;">
+                --- Chúc pha chế ngon miệng ---
+            </div>
+        </div>
+    `;
     }
 
     function effectivePrice(item) {
@@ -168,11 +294,11 @@
         const surcharge = subtotal * percent / 100;
         const total = subtotal + surcharge;
         const change = Math.max(0, (state.cashGiven || 0) - total);
-        return {subtotal, surcharge, total, change, percent};
+        return { subtotal, surcharge, total, change, percent };
     }
 
     function updateTotals() {
-        const {subtotal, surcharge, total, change} = calculateTotals();
+        const { subtotal, surcharge, total, change } = calculateTotals();
         if (summaryElements.subtotal) summaryElements.subtotal.textContent = formatCurrency(subtotal);
         if (summaryElements.surcharge) summaryElements.surcharge.textContent = formatCurrency(surcharge);
         summaryElements.total.forEach(el => el && (el.textContent = formatCurrency(total)));
@@ -308,7 +434,7 @@
                 note: item.note
             }))
         };
-        return {totals, payload};
+        return { totals, payload };
     }
 
     async function finalizeCheckout(preparedPayload) {
@@ -317,7 +443,7 @@
         try {
             const response = await fetch('/api/pos/orders', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             if (!response.ok) throw new Error('Failed to submit order');
@@ -493,11 +619,10 @@
                             ${table.status === 'OCCUPIED' ? 'Đang dùng' : (table.status === 'DISABLED' ? 'Ngưng' : 'Trống')}
                         </span>
                     </div>
-                    <small class="text-muted">${
-                        table.status === 'DISABLED'
-                            ? 'Ẩn khỏi POS'
-                            : (table.occupiedAt ? formatDuration(table.occupiedAt) : 'Chưa có khách')
-                    }</small>
+                    <small class="text-muted">${table.status === 'DISABLED'
+                    ? 'Ẩn khỏi POS'
+                    : (table.occupiedAt ? formatDuration(table.occupiedAt) : 'Chưa có khách')
+                }</small>
                 </div>
             `;
             const card = col.querySelector('.table-card');
@@ -518,19 +643,29 @@
         return `${minutes} phút`;
     }
 
-    function selectTable(table) {
+    async function selectTable(table) {
         disableCheckoutMode();
+        // Lưu cart hiện tại của bàn cũ trước khi chuyển
         persistCurrentCart();
-        state.selectedTable = {...table};
+        
+        state.selectedTable = { ...table };
         updateTableLabel(table.name);
-        loadCartFromStorage();
+        
+        // Load pending orders từ database trước
+        await loadPendingOrdersFromServer();
+        
+        // Nếu không có pending orders từ server, load từ localStorage
+        if (state.cart.length === 0) {
+            loadCartFromStorage();
+        }
+        
         tableModal?.hide();
     }
 
     async function releaseCurrentTable() {
         disableCheckoutMode();
         if (state.selectedTable) {
-            await fetch(`/api/pos/tables/${state.selectedTable.id}/release`, {method: 'POST'});
+            await fetch(`/api/pos/tables/${state.selectedTable.id}/release`, { method: 'POST' });
         }
         state.selectedTable = null;
         updateTableLabel('Mang về');
@@ -539,10 +674,19 @@
 
     async function setTakeAway() {
         disableCheckoutMode();
+        // Lưu cart hiện tại của bàn cũ trước khi chuyển
         persistCurrentCart();
+        
         state.selectedTable = null;
         updateTableLabel('Mang về');
-        loadCartFromStorage();
+        
+        // Load pending orders từ database cho takeaway
+        await loadPendingOrdersFromServer();
+        
+        // Nếu không có pending orders từ server, load từ localStorage
+        if (state.cart.length === 0) {
+            loadCartFromStorage();
+        }
     }
 
     function updateTableLabel(value) {
@@ -598,12 +742,65 @@
     async function ensureTableOccupied() {
         if (!state.selectedTable || state.selectedTable.status === 'OCCUPIED') return;
         try {
-            const res = await fetch(`/api/pos/tables/${state.selectedTable.id}/occupy`, {method: 'POST'});
+            const res = await fetch(`/api/pos/tables/${state.selectedTable.id}/occupy`, { method: 'POST' });
             if (res.ok) {
                 state.selectedTable = await res.json();
             }
         } catch (err) {
             console.error(err);
+        }
+    }
+
+    async function loadPendingOrdersFromServer() {
+        try {
+            const tableId = state.selectedTable?.id ?? null;
+            const url = tableId 
+                ? `/api/pos/orders/pending?tableId=${tableId}`
+                : '/api/pos/orders/pending';
+            
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('Failed to load pending orders');
+            }
+            
+            const data = await response.json();
+            if (data.items && data.items.length > 0) {
+                // Convert server items to cart format và merge với cart hiện tại
+                const serverItems = data.items.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    category: item.category,
+                    unitPrice: item.unitPrice,
+                    quantity: item.quantity,
+                    note: item.note || '',
+                    notified: true, // Tất cả items từ server đều đã được báo chế biến
+                    priceOverride: item.priceOverride
+                }));
+
+                // Merge: Nếu có item cùng ID và note trong cart hiện tại, giữ lại cart hiện tại
+                // Nếu không có pending orders, dùng cart từ server
+                // Nếu có cả hai, ưu tiên server items (vì đã được sync)
+                state.cart = serverItems;
+                
+                // Cập nhật surcharge từ server
+                if (data.surchargePercent !== undefined) {
+                    state.surchargePercent = data.surchargePercent;
+                    if (surchargePercentInput) surchargePercentInput.value = data.surchargePercent;
+                }
+                
+                if (data.surchargeName) {
+                    state.surchargeName = data.surchargeName;
+                }
+                
+                // Lưu vào localStorage để sync
+                saveCartToStorage();
+                updateCartUI();
+            } else {
+                // Không có pending orders từ server, giữ nguyên cart hiện tại (sẽ load từ localStorage sau)
+            }
+        } catch (err) {
+            console.error('Error loading pending orders:', err);
+            // Nếu lỗi, giữ nguyên cart hiện tại
         }
     }
 
